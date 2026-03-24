@@ -1,0 +1,396 @@
+{
+  "updatedAt": "2026-02-22T09:05:21.844Z",
+  "createdAt": "2026-01-31T18:51:43.719Z",
+  "id": "9RyWU7G4ahZzk6Yy3HqTy",
+  "name": "Errors Dev",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "8e202f16-58c0-422e-be8a-5a20650c1594",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://integration.studyflow.global/api/getSOAFromProtocol",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-vercel-protection-bypass",
+              "value": "prodifyproductiontem123HayElazar"
+            },
+            {
+              "name": "external_secret_key",
+              "value": "={{ $json.external_secret_id }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"error\":\n  {\"name\":\"{{ $('Error Trigger').item.json.execution.error.name }}\",\n   \"message\": \"{{ $('Error Trigger').item.json.execution.error.message.replaceAll(/\"/g, '\\\\\"') }}\",\n\"research_id\":\"{{ $json.research_id }}\"\n}\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        432,
+        0
+      ],
+      "id": "978120fd-417f-4ffd-9458-e98ccf271378",
+      "name": "HTTP Request4"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Zn3zT1LcGs76ERHT",
+          "mode": "list",
+          "cachedResultName": "Dev Parameters",
+          "cachedResultUrl": "/projects/drgp74Pcn8DWk0gm/datatables/Zn3zT1LcGs76ERHT"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "workflow_id",
+              "keyValue": "={{ $json.workflow.id }}"
+            }
+          ]
+        },
+        "limit": 2
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "9cfea067-1ec1-4493-8c6a-d343896d545c",
+      "name": "Get row(s)"
+    },
+    {
+      "parameters": {
+        "operation": "deleteRows",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Zn3zT1LcGs76ERHT",
+          "mode": "list",
+          "cachedResultName": "Dev Parameters",
+          "cachedResultUrl": "/projects/drgp74Pcn8DWk0gm/datatables/Zn3zT1LcGs76ERHT"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "workflow_id",
+              "keyValue": "={{ $workflow.id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        640,
+        0
+      ],
+      "id": "ad36597e-4e7e-4d3b-841e-79beaaa5eec1",
+      "name": "Delete row(s)"
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get row(s)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s)": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request4": {
+      "main": [
+        [
+          {
+            "node": "Delete row(s)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {
+    "Error Trigger": [
+      {
+        "json": {
+          "execution": {
+            "id": "61",
+            "url": "https://prodifyil.app.n8n.cloud/workflow/Mtnndf6Z_hAkuVnflLN-O/executions/61",
+            "error": {
+              "level": "warning",
+              "tags": {},
+              "timestamp": 1771748859038,
+              "context": {},
+              "functionality": "regular",
+              "name": "NodeOperationError",
+              "node": {
+                "parameters": {
+                  "curlImport": "",
+                  "method": "GET",
+                  "url": "={{ $('Webhook').item.json.body.protocolUrl }}",
+                  "authentication": "none",
+                  "provideSslCertificates": false,
+                  "sendQuery": false,
+                  "sendHeaders": false,
+                  "sendBody": false,
+                  "options": {},
+                  "infoMessage": ""
+                },
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                  -1712,
+                  112
+                ],
+                "id": "626bdfb6-d687-48d8-8c4d-5ad218bb5307",
+                "name": "Read Protocol"
+              },
+              "messages": [],
+              "message": "Invalid URL: . URL must start with \"http\" or \"https\".",
+              "stack": "NodeOperationError: Invalid URL: . URL must start with \"http\" or \"https\".\n    at ExecuteContext.execute (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/n8n-nodes-base@file+packages+nodes-base_@aws-sdk+credential-providers@3.808.0_asn1.js@5_8da18263ca0574b0db58d4fefd8173ce/node_modules/n8n-nodes-base/nodes/HttpRequest/V3/HttpRequestV3.node.ts:200:12)\n    at WorkflowExecute.executeNode (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/n8n-core@file+packages+core_@opentelemetry+api@1.9.0_@opentelemetry+exporter-trace-otlp_4dbefa9881a7c57a9e05a20ce4387c10/node_modules/n8n-core/src/execution-engine/workflow-execute.ts:1039:31)\n    at WorkflowExecute.runNode (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/n8n-core@file+packages+core_@opentelemetry+api@1.9.0_@opentelemetry+exporter-trace-otlp_4dbefa9881a7c57a9e05a20ce4387c10/node_modules/n8n-core/src/execution-engine/workflow-execute.ts:1218:22)\n    at /usr/local/lib/node_modules/n8n/node_modules/.pnpm/n8n-core@file+packages+core_@opentelemetry+api@1.9.0_@opentelemetry+exporter-trace-otlp_4dbefa9881a7c57a9e05a20ce4387c10/node_modules/n8n-core/src/execution-engine/workflow-execute.ts:1653:38\n    at /usr/local/lib/node_modules/n8n/node_modules/.pnpm/n8n-core@file+packages+core_@opentelemetry+api@1.9.0_@opentelemetry+exporter-trace-otlp_4dbefa9881a7c57a9e05a20ce4387c10/node_modules/n8n-core/src/execution-engine/workflow-execute.ts:2296:11"
+            },
+            "lastNodeExecuted": "Read Protocol",
+            "mode": "webhook",
+            "executionContext": {
+              "version": 1,
+              "establishedAt": 1771748858975,
+              "source": "webhook",
+              "triggerNode": {
+                "name": "Webhook",
+                "type": "n8n-nodes-base.webhook"
+              }
+            }
+          },
+          "workflow": {
+            "id": "Mtnndf6Z_hAkuVnflLN-O",
+            "name": "SOA Dev"
+          }
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "versionId": "29c15fe5-8699-4498-b47a-1225c99b591b",
+  "activeVersionId": "29c15fe5-8699-4498-b47a-1225c99b591b",
+  "versionCounter": 126,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2026-01-31T18:51:43.722Z",
+      "createdAt": "2026-01-31T18:51:43.722Z",
+      "role": "workflow:owner",
+      "workflowId": "9RyWU7G4ahZzk6Yy3HqTy",
+      "projectId": "drgp74Pcn8DWk0gm",
+      "project": {
+        "updatedAt": "2026-01-18T10:09:29.101Z",
+        "createdAt": "2026-01-18T10:09:23.816Z",
+        "id": "drgp74Pcn8DWk0gm",
+        "name": "Nir Levy <service@prodify.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "9b4a421e-6aba-40a7-82ff-eb34ba58a059"
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-02-22T09:05:12.000Z",
+    "createdAt": "2026-02-22T09:05:00.119Z",
+    "versionId": "29c15fe5-8699-4498-b47a-1225c99b591b",
+    "workflowId": "9RyWU7G4ahZzk6Yy3HqTy",
+    "nodes": [
+      {
+        "parameters": {},
+        "type": "n8n-nodes-base.errorTrigger",
+        "typeVersion": 1,
+        "position": [
+          0,
+          0
+        ],
+        "id": "8e202f16-58c0-422e-be8a-5a20650c1594",
+        "name": "Error Trigger"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=https://integration.studyflow.global/api/getSOAFromProtocol",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "x-vercel-protection-bypass",
+                "value": "prodifyproductiontem123HayElazar"
+              },
+              {
+                "name": "external_secret_key",
+                "value": "={{ $json.external_secret_id }}"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"error\":\n  {\"name\":\"{{ $('Error Trigger').item.json.execution.error.name }}\",\n   \"message\": \"{{ $('Error Trigger').item.json.execution.error.message.replaceAll(/\"/g, '\\\\\"') }}\",\n\"research_id\":\"{{ $json.research_id }}\"\n}\n}",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          432,
+          0
+        ],
+        "id": "978120fd-417f-4ffd-9458-e98ccf271378",
+        "name": "HTTP Request4"
+      },
+      {
+        "parameters": {
+          "operation": "get",
+          "dataTableId": {
+            "__rl": true,
+            "value": "Zn3zT1LcGs76ERHT",
+            "mode": "list",
+            "cachedResultName": "Dev Parameters",
+            "cachedResultUrl": "/projects/drgp74Pcn8DWk0gm/datatables/Zn3zT1LcGs76ERHT"
+          },
+          "filters": {
+            "conditions": [
+              {
+                "keyName": "workflow_id",
+                "keyValue": "={{ $json.workflow.id }}"
+              }
+            ]
+          },
+          "limit": 2
+        },
+        "type": "n8n-nodes-base.dataTable",
+        "typeVersion": 1.1,
+        "position": [
+          208,
+          0
+        ],
+        "id": "9cfea067-1ec1-4493-8c6a-d343896d545c",
+        "name": "Get row(s)"
+      },
+      {
+        "parameters": {
+          "operation": "deleteRows",
+          "dataTableId": {
+            "__rl": true,
+            "value": "Zn3zT1LcGs76ERHT",
+            "mode": "list",
+            "cachedResultName": "Dev Parameters",
+            "cachedResultUrl": "/projects/drgp74Pcn8DWk0gm/datatables/Zn3zT1LcGs76ERHT"
+          },
+          "filters": {
+            "conditions": [
+              {
+                "keyName": "workflow_id",
+                "keyValue": "={{ $workflow.id }}"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.dataTable",
+        "typeVersion": 1.1,
+        "position": [
+          640,
+          0
+        ],
+        "id": "ad36597e-4e7e-4d3b-841e-79beaaa5eec1",
+        "name": "Delete row(s)"
+      }
+    ],
+    "connections": {
+      "Error Trigger": {
+        "main": [
+          [
+            {
+              "node": "Get row(s)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get row(s)": {
+        "main": [
+          [
+            {
+              "node": "HTTP Request4",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "HTTP Request4": {
+        "main": [
+          [
+            {
+              "node": "Delete row(s)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "Nir Levy",
+    "name": "Version 29c15fe5",
+    "description": "",
+    "autosaved": true,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-02-22T09:05:12.181Z",
+        "id": 14,
+        "workflowId": "9RyWU7G4ahZzk6Yy3HqTy",
+        "versionId": "29c15fe5-8699-4498-b47a-1225c99b591b",
+        "event": "activated",
+        "userId": "9b4a421e-6aba-40a7-82ff-eb34ba58a059"
+      }
+    ]
+  }
+}

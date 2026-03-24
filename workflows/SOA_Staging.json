@@ -1,0 +1,2227 @@
+{
+  "updatedAt": "2026-02-26T09:05:38.035Z",
+  "createdAt": "2026-02-25T10:38:45.158Z",
+  "id": "fSHBEEjBbeXFIZzh",
+  "name": "SOA Staging",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {
+          "joinPages": true,
+          "maxPages": 30
+        }
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -1488,
+        112
+      ],
+      "id": "6b758da1-e7cc-49fb-8fdc-0df31689d707",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "9a54d415-b51c-42c3-8a0b-31cb6b22d942",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -2816,
+        208
+      ],
+      "id": "d7d9bd5a-e5d1-406a-8b20-fdc8e8f14cca",
+      "name": "Webhook",
+      "webhookId": "9a54d415-b51c-42c3-8a0b-31cb6b22d942"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('LlamaIndexMarkdown').item.json.data }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=You are a clinical data extraction assistant.\n# Clinical Trial Protocol Expert - Schedule of Activities (SOA) Extraction Role\n\n## Role Definition\nYou are a **Clinical Trial Protocol** specializing in clinical trial documentation and protocol analysis. Your primary responsibility is to extract Schedule of Activities (SOA) information from clinical trial PDF documents and convert it into structured CSV format using markdown table syntax.\n\n## Core Responsibilities\n\n### 1. Document Analysis\n- Carefully analyze PDF documents to locate SOA tables that may span multiple pages\n- Identify table headers, column structures, and data relationships\n- Recognize common clinical trial terminology and abbreviations\n- Handle multi-page table continuations and merged cells\n\n### 2. Data Extraction Standards\nExtract the following standard SOA columns (adapt based on document structure):\n- **When constructing any procedure or activity name, replace all newline characters (\\n, \\r\\n, actual line breaks) with a single space.\n- **Never include \"\\n\" or any escape sequences in the output.\n- **Meeting Number**: Sequential visit/meeting identifier\n- **Meeting Name**: Descriptive name of the visit/phase (e.g., Screening, Baseline, Follow-up)\n- **Actions to Perform**: \n1. Detailed list of procedures, assessments, or activities \n2. keep the exact procedure name as shown in the input data\n3. Do not add any comment or details to the origial procedure name\n- **Days since First Meeting**: Timeline relative to study start (negative for pre-study activities)\n- **Visit Type**: Frequency or type classification\n- **Allowed Deviation**: Permitted timing variations (in days)\n\n\n## Quality Standards\n\n### Accuracy Requirements\n- Maintain 100% fidelity to source document content\n- Use the list in {{ $json.output.activities }} only as a spelling reference for the procedures or activities names.\nDo not restrict yourself to this list. If the SOA tables contain any additional procedures or activities that are not in this list, you must still include them.\n- Keep the procedure or activity name exactly as in the original input data with an exact reference to this list:{{ $json.output.activities }} \n- Preserve original medical terminology and abbreviations\n- Capture complete action lists without truncation\n- Maintain correct numerical values and timelines\n\n### Data Handling Rules\n- **Multi-line Actions**: Combine multiple procedures using commas and appropriate spacing\n- **Timeline Consistency**: Ensure chronological order and accurate day calculations\n- **Missing Data**: Use \"N/A\" for unavailable information, never leave cells empty\n- **Language Handling**: Preserve original language (including Hebrew/foreign text) alongside English translations when present\n\n### SOA table interpretation rules\n\n1. Treat every non-header row in the SOA tables as a **candidate procedure/activity**.\n   - The procedure name is the exact text in the first column of that row.\n   - Ignore purely structural rows that are section titles only, such as:\n     - \"Physical Evaluation\"\n     - \"Patient-Reported Outcomes (Electronic)\"\n     - \"Laboratory Tests and Sample Collections\"\n\n2. A procedure is **performed at a visit** if, in that visit\u2019s column, the cell is NOT empty\n   (e.g. contains \"X\", \"\u25cf\", \"\u2714\", \"Yes\", or any non-blank marker).\n\n3. For each visit / treatment:\n   - Iterate over all candidate rows from top to bottom.\n   - If the cell under that visit column is marked per rule 2, append the procedure name\n     to `actions_to_perform` for that visit.\n   - Use the exact text from the row (preserve spelling, punctuation, line breaks).\n\n4. Never group or rename procedures:\n   - Do **not** collapse rows like \"Concomitant medications\" and \"AEs\" into\n     generic labels like \"safety assessments\".\n   - Each row that has a marker in a visit column must appear as its own item in\n     `actions_to_perform` for that visit.\n5. Do not output any HTML tags inside a procedure name (for example: <br/>.\n6. Ignore any formatting escape sequences such as \"\\n\", \"\\r\" and treat them as spaces for the procedure names. \n7. Procedures that appear on multiple pages or repeated tables (e.g. \"Concomitant medications\",\n   \"AEs\") must be treated as a single procedure name and included for **every** visit column\n   where the cell is marked in **any** of the SOA table fragments.\n\n\n### Format Consistency\n- Use consistent column alignment in markdown tables\n- Maintain uniform spacing and structure\n- Ensure proper pipe (`|`) separation\n- Include table headers with appropriate separators (`|---|`)\n\n## Extraction Process\n\n### Step 1: Document Review\n1. Scan entire PDF for SOA tables\n2. Identify table boundaries and page breaks\n3. Note any special formatting or merged cells\n4. Catalog all column headers and their meanings\n\n### Step 2: Data Mapping\n1. Map source columns to standard output format\n2. Identify data transformations needed\n3. Note any non-standard information that requires special handling\n4. Plan for multi-page table reconstruction\n\n### Step 3: Extraction & Validation\n1. Extract data row by row, maintaining source order\n2. Cross-reference timeline calculations\n3. Verify completeness of action descriptions\n4. Validate data consistency across visits\n\n### Step 4: Quality Assurance\n1. Review extracted table for completeness\n2. Check alignment with source document\n3. Verify markdown syntax correctness\n4. Ensure all required columns are populated\n\n## Common Challenges & Solutions\n\n### Multi-Page Tables\n- Carefully track table continuations across pages\n- Reconstruct complete rows when data spans pages\n- Maintain proper sequence numbering\n\n### Complex Action Lists\n- Preserve detailed procedure descriptions\n- Use appropriate separators for multiple actions\n- Maintain clinical accuracy of terminology\n\n### Timeline Calculations\n- Verify day calculations against study start\n- Handle negative days for screening periods\n- Ensure consistency in deviation allowances\n\n## Error Handling\n- **Unclear Data**: Flag ambiguous information and provide best interpretation\n- **Missing Information**: Clearly indicate when data is not available in source\n- **Formatting Issues**: Adapt to source document layout while maintaining output standards\n- **Inconsistencies**: Note discrepancies and provide rationale for interpretation choices\n\n### Consistency self-check\n\nAfter you build the `schedule_of_activities` JSON:\n\n1. Re-scan all SOA tables.\n2. For each procedure row and each visit column:\n   - If the visit cell is marked (e.g. \"X\") but that procedure is missing from\n     `actions_to_perform` for that visit, **add it**.\n3. Ensure each procedure appears exactly once per visit where it is performed and without any additional comments or explanation.\n\n\n"
+            },
+            {
+              "type": "AIMessagePromptTemplate",
+              "message": "### Output Format Requirements Present extracted data as a markdown table with the following structure:  ```markdown | Meeting Number | Meeting Name | Actions to Perform | Days since First Meeting | Visit Type | Allowed Deviation | |----------------|--------------|-------------------|---------------------------|------------|-------------------| | [number] | [name] | [detailed actions] | [timeline] | [type] | [deviation] | ```"
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.6,
+      "position": [
+        784,
+        0
+      ],
+      "id": "931447a6-2fd4-405b-bc15-74dca99746bf",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"$schema\": \"http://json-schema.org/draft-07/schema#\",\n  \"title\": \"Schedule of Activities (SOA) Schema\",\n  \"description\": \"JSON schema for extracting Schedule of Activities from clinical trial PDFs\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"schedule_of_activities\": {\n      \"type\": \"array\",\n      \"description\": \"Array of SOA entries representing each meeting/visit\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"meeting_number\": {\n            \"type\": \"integer\",\n            \"description\": \"Sequential meeting/visit identifier\",\n            \"minimum\": 1,\n            \"examples\": [1, 2, 3, 4, 5]\n          },\n          \"meeting_name\": {\n            \"type\": \"string\",\n            \"description\": \"Descriptive name of the visit/meeting phase\",\n            \"minLength\": 1,\n            \"examples\": [\n              \"Screening\",\n              \"Intervention Period\",\n              \"Baseline\",\n              \"Follow-up\",\n              \"End of Study\"\n            ]\n          },\n          \"actions_to_perform\": {\n            \"type\": \"array\",\n            \"description\": \"List of individual procedures, assessments, or activities to be performed\",\n            \"items\": {\n              \"type\":\"string\",\n              \"minLength\": 1\n            },\n            \"minLength\": 1,\n            \"examples\": [\n              \"Informed consent, Inclusion and exclusion\",\n              \"Inclusion and exclusion criteria, Nasal endoscopy\",\n              \"Smoking status, IRT, Vital signs\"]\n          },\n          \"days_since_first_meeting\": {\n            \"type\": \"integer\",\n            \"description\": \"Number of days since the first meeting (negative values for pre-study activities)\",\n            \"examples\": [-28, 1, 15, 29, 43]\n          },\n          \"visit_type\": {\n            \"type\": \"string\",\n            \"description\": \"Type or frequency classification of the visit\",\n            \"minLength\": 1,\n            \"examples\": [\n              \"Weekly (\u05e9\u05d1\u05d5\u05e2)\",\n              \"Monthly\",\n              \"Bi-weekly\",\n              \"Quarterly\",\n              \"As needed\"\n            ]\n          },\n          \"allowed_deviation\": {\n            \"type\": \"integer\",\n            \"description\": \"Permitted timing deviation in days\",\n            \"minimum\": 0,\n            \"examples\": [0, 1, 2, 3, 7]\n          }\n        },\n        \"required\": [\n          \"meeting_number\",\n          \"meeting_name\",\n          \"actions_to_perform\",\n          \"days_since_first_meeting\",\n          \"visit_type\",\n          \"allowed_deviation\"\n        ],\n        \"additionalProperties\": false\n      },\n      \"minItems\": 1\n    },\n    \"metadata\": {\n      \"type\": \"object\",\n      \"description\": \"Optional metadata about the extraction\",\n      \"properties\": {\n        \"extraction_date\": {\n          \"type\": \"string\",\n          \"format\": \"date-time\",\n          \"description\": \"ISO 8601 timestamp of when the extraction was performed\"\n        },\n        \"source_document\": {\n          \"type\": \"string\",\n          \"description\": \"Name or identifier of the source PDF document\"\n        },\n        \"total_meetings\": {\n          \"type\": \"integer\",\n          \"description\": \"Total number of meetings/visits extracted\",\n          \"minimum\": 1\n        },\n        \"study_duration_days\": {\n          \"type\": \"integer\",\n          \"description\": \"Total study duration from first to last meeting in days\"\n        },\n        \"extraction_notes\": {\n          \"type\": \"array\",\n          \"description\": \"Any notes or observations from the extraction process\",\n          \"items\": {\n            \"type\": \"string\"\n          }\n        }\n      },\n      \"additionalProperties\": false\n    }\n  },\n  \"required\": [\"schedule_of_activities\"],\n  \"additionalProperties\": false,\n  \"examples\": [\n    {\n      \"schedule_of_activities\": [\n        {\n          \"meeting_number\": 1,\n          \"meeting_name\": \"Screening\",\n          \"actions_to_perform\": [\"Informed consent\", \"Inclusion and exclusion\"],\n          \"days_since_first_meeting\": -28,\n          \"visit_type\": \"Weekly (\u05e9\u05d1\u05d5\u05e2)\",\n          \"allowed_deviation\": 0\n        },\n        {\n          \"meeting_number\": 2,\n          \"meeting_name\": \"Intervention Period\",\n          \"actions_to_perform\": [\"Inclusion and exclusion criteria\", \"Nasal endoscopy\"],\n          \"days_since_first_meeting\": 1,\n          \"visit_type\": \"Weekly (\u05e9\u05d1\u05d5\u05e2)\",\n          \"allowed_deviation\": 0\n        },\n        {\n          \"meeting_number\": 3,\n          \"meeting_name\": \"Intervention Period\",\n          \"actions_to_perform\": [\"Smoking status\", \"IRT\", \"Vital signs\"],\n          \"days_since_first_meeting\": 15,\n          \"visit_type\": \"Weekly (\u05e9\u05d1\u05d5\u05e2)\",\n          \"allowed_deviation\": 0\n        },\n        {\n          \"meeting_number\": 4,\n          \"meeting_name\": \"Intervention Period\",\n          \"actions_to_perform\": [\"Record planned endoscopic sinus surgery\", \"PI\"],\n          \"days_since_first_meeting\": 29,\n          \"visit_type\": \"Weekly (\u05e9\u05d1\u05d5\u05e2)\",\n          \"allowed_deviation\": 0\n        },\n        {\n          \"meeting_number\": 5,\n          \"meeting_name\": \"Intervention Period\",\n          \"actions_to_perform\": [\"IMP administration\", \"AxMP dispensation\", \"Symptom review\"],\n          \"days_since_first_meeting\": 43,\n          \"visit_type\": \"Weekly (\u05e9\u05d1\u05d5\u05e2)\",\n          \"allowed_deviation\": 0\n        }\n      ],\n      \"metadata\": {\n        \"extraction_date\": \"2025-05-29T10:00:00Z\",\n        \"source_document\": \"clinical_trial_protocol_v1.2.pdf\",\n        \"total_meetings\": 5,\n        \"study_duration_days\": 71,\n        \"extraction_notes\": [\n          \"All meetings extracted successfully\",\n          \"Hebrew text preserved in visit_type field\"\n        ]\n      }\n    }\n  ]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        928,
+        224
+      ],
+      "id": "b859d678-8bb5-4b2f-9fc4-6dabb13d9ab1",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-5",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        800,
+        224
+      ],
+      "id": "07011d8c-0500-4c97-af28-cd36b8db6840",
+      "name": "OpenRouter Chat Model3",
+      "credentials": {
+        "openRouterApi": {
+          "id": "T7TjEbEGEzMRliqw",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.cloud.llamaindex.ai/api/v1/parsing/upload",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "target_pages",
+              "value": "={{ $('Map Pages').item.json['Start Page'] }}-{{ $('Map Pages').item.json['End Page'] }}"
+            },
+            {
+              "name": "premium_mode",
+              "value": "true"
+            },
+            {
+              "name": "output_tables_as_HTML",
+              "value": "True"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -464,
+        112
+      ],
+      "id": "af08a144-afe8-4259-944a-04f555da45e5",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "8YUTliuLVqXIYwZS",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.cloud.llamaindex.ai/api/v1/parsing/job/{{ $json.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -240,
+        112
+      ],
+      "id": "a76e8a8f-44cb-4cbb-b54e-6203fa1276f0",
+      "name": "HTTP Request10",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "8YUTliuLVqXIYwZS",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.status }}",
+                    "rightValue": "SUCCESS",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "8421ecaa-968e-49f6-82c6-38fdebf6e447"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "SUCCESS"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "1ca01ef7-869e-4a9b-93ef-0e70fc1bbab3",
+                    "leftValue": "={{ $json.status }}",
+                    "rightValue": "PENDING",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "PENDING"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -16,
+        48
+      ],
+      "id": "f3c1add8-8f4d-4967-9146-d2771524943a",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "amount": 15
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        208,
+        208
+      ],
+      "id": "87a63cbf-d8d1-460d-8d5e-4a84e18a1b58",
+      "name": "Wait",
+      "webhookId": "22b67c7c-6819-454a-b25a-a95a1e313c44"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-5-mini",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -1184,
+        336
+      ],
+      "id": "d81031ec-2799-4b36-9d64-5a830994ead9",
+      "name": "OpenRouter Chat Model4",
+      "credentials": {
+        "openRouterApi": {
+          "id": "T7TjEbEGEzMRliqw",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Search Secret').item.json.Base_url }}/api/getSOAFromProtocol",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-vercel-protection-bypass",
+              "value": "prodifyproductiontem123HayElazar"
+            },
+            {
+              "name": "x-tenant-secret",
+              "value": "={{ $('Search Secret').item.json.External_secret_key }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $('FinalJson').item.json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2160,
+        0
+      ],
+      "id": "e35b53b2-9904-406b-b845-3f4f1e2a27e5",
+      "name": "HTTP Request3"
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.data }}",
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"activities\": {\n      \"type\": \"array\",\n      \"items\": { \"type\": \"string\" }\n    }\n  },\n  \"required\": [\"activities\"],\n  \"additionalProperties\": false\n}\n",
+        "options": {
+          "systemPromptTemplate": "You are an extraction and diagnostics model.\n\nYou receive as input one or more \"Schedule of Activities\" tables for a clinical trial.\nEach row in the first column is a potential procedure or activity.\nThe remaining columns indicate at which visit(s) the procedure is performed (for example with \"X\" markers).\n\nYour task is to:\n1. Examine every row that appears in the first column.\n2. Decide if it is:\n   - a real procedure/activity row OR\n   - a header / section title / label OR\n   - something else (e.g., comments).\n3.  A procedure is **performed at a visit** if, in that visit\u2019s column, the cell is NOT empty\n   (e.g. contains \"X\", \"\u25cf\", \"\u2714\", \"Yes\", or any non-blank marker).\n4. For every row in the first column, output a diagnostic record so we can see exactly what you did.\n5. Do not output headers / section title or labels\n6. Do not output any HTML tags inside a procedure name (for example: <br/>.\n7. Ignore any formatting escape sequences such as \"\\n\", \"\\r\" and treat them as spaces for the procedure names. \n\nOutput ONLY valid raw JSON. No prose, no Markdown fences, no keys other than those in the schema.\n\nAdditional rules:\n\n- Read the ENTIRE input from start to finish. Do not stop after the first table or section.\n- Do not deduplicate or merge similar rows. If the same text appears in multiple rows, you must output multiple records with different \"row_index\" values.\n- Do not sort or reorder rows; always preserve the original order of appearance.\n\nVerification step (very important):\n\n- Before returning the JSON:\n  - Confirm that the number of \"rows\" objects you are returning equals the number of rows you processed in the FIRST column of all the SoA tables combined.\n  - Re-check that for every row:\n    - \"row_index\" is unique and sequential starting at 1,\n    - All boolean flags are consistent with the definitions above.\n\nOutput the number of procedures or activities at the end\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1.2,
+      "position": [
+        432,
+        0
+      ],
+      "id": "deea6640-9745-4d96-abe1-87f3122577f2",
+      "name": "Information Extractor3",
+      "alwaysOutputData": false,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "model": "google/gemini-2.5-pro",
+        "options": {
+          "responseFormat": "json_object"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        512,
+        224
+      ],
+      "id": "7883a843-ff1f-4270-8bdf-cb25378e9da1",
+      "name": "OpenRouter Chat Model5",
+      "credentials": {
+        "openRouterApi": {
+          "id": "T7TjEbEGEzMRliqw",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-5-mini",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1664,
+        224
+      ],
+      "id": "f14cee5d-c484-49b2-97ac-a5981b9b2728",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "T7TjEbEGEzMRliqw",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "text": "={{$json[\"output\"][\"distinct_actions\"].join(\"\\n\")}}",
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"$schema\": \"http://json-schema.org/draft-07/schema#\",\n  \"title\": \"Clinical Trial Data\",\n  \"type\": \"array\",\n  \"items\": {\n    \"type\": \"object\",\n    \"properties\": {\n      \"output\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"distinct_actions\": {\n            \"type\": \"array\",\n            \"items\": {\n              \"type\": \"string\",\n              \"minLength\": 1\n            },\n            \"uniqueItems\": true,\n            \"minItems\": 1,\n            \"description\": \"Array of unique clinical trial actions, procedures, and assessments\"\n          },\n          \"total_count\": {\n            \"type\": \"integer\",\n            \"minimum\": 0,\n            \"description\": \"Total count of distinct actions\"\n          }\n        },\n        \"required\": [\"distinct_actions\", \"total_count\"],\n        \"additionalProperties\": false\n      }\n    },\n    \"required\": [\"output\"],\n    \"additionalProperties\": false\n  }\n}",
+        "options": {
+          "systemPromptTemplate": "=You are an expert extraction algorithm.\nYour input data is \"ACTIVITIES LIST\".\nThis {{ $('LlamaIndexMarkdown').item.json.data }} is a \"SOURCE JSON\" includes tables with activities. \nSort the \"ACTIVITES LIST\" list based on the activities order in the \"SOURCE JSON\".\nReturn the entire \"ACTIVITIES LIST\" ordered by activity names.\nDo not skip any activity from the \"ACTIVITIES LIST\".\nCreate a distinct list of all the activities.\n\n#You must return ALL the activities from the \"ACTIVITIES LIST\".\n#You should not change any name in the \"ACTIVITIES LIST\"\n#You should not change capital letters\n#You should not remove any panctuation sign from the activity names\n\nIf you can't find an activity name, you may decide for yourself what to do."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1.2,
+      "position": [
+        1584,
+        0
+      ],
+      "id": "6a83bb9b-c491-49d9-842d-b646feb07c74",
+      "name": "Reorder activities"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "063da7a7-df79-411c-90e5-ae42260f8e93",
+              "name": "output.schedule_of_activities",
+              "value": "={{ $json.output.schedule_of_activities }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1136,
+        0
+      ],
+      "id": "1143f617-8793-4eee-861b-0c8920d395ff",
+      "name": "Schedule of Activities"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.cloud.llamaindex.ai/api/v1/parsing/job/{{ $json.id }}/result/raw/markdown",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "2b21cba9-9ab2-4ff0-ad70-4ae46fa41047",
+      "name": "LlamaIndexMarkdown",
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "8YUTliuLVqXIYwZS",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      output:{\n      data:{ \n        schedule_of_activities: $('Schedule of Activities').first().json.output.schedule_of_activities ,\n        metadata: {\n          start_page: $('Map Pages').first().json['Start Page'],\n          end_page:$('Map Pages').first().json['End Page'] ,\n      researchid:$('Webhook').first().json.body.researchId ,\n        siteid: $('Webhook').first().json.body.siteId,\n          activities: $('Reorder activities').first().json.output[0].output.distinct_actions\n        }\n      }\n      }\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1936,
+        0
+      ],
+      "id": "cc9b9392-6bd0-49f9-be0b-255ac032c88e",
+      "name": "FinalJson"
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n JavaScript Code node\n// Extract distinct actions_to_perform from output.schedule_of_activities\n\nconst scheduleOfActivities =\n  $input.first().json?.output?.schedule_of_activities ?? [];\n\n// Collect all actions from all meetings\nconst allActions = scheduleOfActivities.flatMap((meeting) => {\n  const actions = meeting?.actions_to_perform;\n\n  // Ensure we always return an array\n  if (Array.isArray(actions)) return actions;\n  if (typeof actions === \"string\" && actions.trim()) return [actions.trim()];\n  return [];\n});\n\n// Deduplicate + sort\nconst distinctActions = [...new Set(allActions)]\n  .filter((x) => typeof x === \"string\" && x.trim())\n  .map((x) => x.trim())\n  .sort((a, b) => a.localeCompare(b));\n\n// Return single item with output object\nreturn [\n  {\n    json: {\n      output: {\n        distinct_actions: distinctActions,\n        total_count: distinctActions.length,\n      },\n    },\n  },\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        0
+      ],
+      "id": "6be8ed22-9491-4737-b66c-a0780ed9db5f",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Webhook').item.json.body.protocolUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Search Secret').item.json.blob_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1712,
+        112
+      ],
+      "id": "e5d9d505-d3a1-4e24-8eaf-16179468cb1f",
+      "name": "Read Protocol"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "DSn4OBX0pilN5zQJ",
+          "mode": "list",
+          "cachedResultName": "Domains",
+          "cachedResultUrl": "/projects/drgp74Pcn8DWk0gm/datatables/DSn4OBX0pilN5zQJ"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "Secret_key",
+              "keyValue": "={{ $json.headers['x-secret-key'] }}"
+            }
+          ]
+        },
+        "limit": 1
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        -2592,
+        208
+      ],
+      "id": "eef93599-0e49-4726-8555-afef0c867473",
+      "name": "Search Secret",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.text }}",
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"startPage\": {\n      \"type\": \"integer\",\n      \"description\": \"The page number where the Schedule of Activities section starts\"\n    },\n    \"endPage\": {\n      \"type\": \"integer\",\n      \"description\": \"The page number where the Schedule of Activities section ends\"\n    }\n  },\n  \"required\": [\"startPage\", \"endPage\"]\n}",
+        "options": {
+          "systemPromptTemplate": "You are a smart data extraction assistant. Your task is to extract the page range of the section related to the Schedule of Activities (SoA) from a Table of Content or Appendix of a clinical trial protocol document.\nLook for a section explicitly named \"Schedule of Activities\" or similar variations such as: \n- \"SOA\"\n- \"Schedule of Events\"\n- \"Visit Schedule\"\n- \"Visit Table\"\n- \"Activity Table\"\n\nReturn the **startPage** (the page number where the section starts), and the **endPage** (either the next section\u2019s page minus 1, or estimate if not clear).\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1.2,
+      "position": [
+        -1264,
+        112
+      ],
+      "id": "929864d8-f980-461e-9000-95df697b697c",
+      "name": "Extract Schema Pages"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f460f8db-7884-434b-9a35-fcd7d8ebedd9",
+              "name": "Start Page",
+              "value": "={{(Number($json.output.startPage)-1) }}",
+              "type": "number"
+            },
+            {
+              "id": "f5cc2031-8b81-4a2c-ada1-d467e373db75",
+              "name": "End Page",
+              "value": "={{ (Number($json.output.endPage) + 2).toString() }}\n",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -912,
+        112
+      ],
+      "id": "e44ec64c-e06c-46df-be57-5d8034a47bed",
+      "name": "Map Pages"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Webhook').item.json.body.protocolUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Search Secret').item.json.blob_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -688,
+        112
+      ],
+      "id": "999165ab-3bcc-4395-a243-bfcb80f16d36",
+      "name": "Read Protocol 2nd"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "88f77b6c-7f3a-41bb-a347-7209a70b5280",
+              "leftValue": "={{ $('Search Secret').item.json.isEmpty() }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -2160,
+        208
+      ],
+      "id": "5b67fb94-2ab6-4c17-a7bf-80e843421b91",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -1936,
+        304
+      ],
+      "id": "541492ac-0bca-400d-968f-a277060e9e75",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -1936,
+        112
+      ],
+      "id": "50540377-a2b2-4f70-b3e0-34cae0f799ba",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "E5u7QPCjGgDpUons",
+          "mode": "list",
+          "cachedResultName": "Staging Parameters",
+          "cachedResultUrl": "/projects/drgp74Pcn8DWk0gm/datatables/E5u7QPCjGgDpUons"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_id": "={{ $workflow.id }}",
+            "external_secret_id": "={{ $json.External_secret_key }}",
+            "research_id": "={{ $('Webhook').item.json.body.researchId }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "workflow_id",
+              "displayName": "workflow_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "external_secret_id",
+              "displayName": "external_secret_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "research_id",
+              "displayName": "research_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -2384,
+        208
+      ],
+      "id": "21f6ef23-b1aa-414c-8eef-264cbda86b42",
+      "name": "Insert row"
+    },
+    {
+      "parameters": {
+        "operation": "deleteRows",
+        "dataTableId": {
+          "__rl": true,
+          "value": "E5u7QPCjGgDpUons",
+          "mode": "list",
+          "cachedResultName": "Staging Parameters",
+          "cachedResultUrl": "/projects/drgp74Pcn8DWk0gm/datatables/E5u7QPCjGgDpUons"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "workflow_id",
+              "keyValue": "={{ $workflow.id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2368,
+        0
+      ],
+      "id": "84d8ae83-b0a5-4c8f-a52f-50684216ba4d",
+      "name": "Delete row(s)"
+    }
+  ],
+  "connections": {
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Extract Schema Pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Search Secret",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Schedule of Activities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request10",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request10": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "LlamaIndexMarkdown",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request10",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model4": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Extract Schema Pages",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Information Extractor3": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model5": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Information Extractor3",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Reorder activities",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reorder activities": {
+      "main": [
+        [
+          {
+            "node": "FinalJson",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule of Activities": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LlamaIndexMarkdown": {
+      "main": [
+        [
+          {
+            "node": "Information Extractor3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FinalJson": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Reorder activities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Protocol": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Secret": {
+      "main": [
+        [
+          {
+            "node": "Insert row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Schema Pages": {
+      "main": [
+        [
+          {
+            "node": "Map Pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Pages": {
+      "main": [
+        [
+          {
+            "node": "Read Protocol 2nd",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Protocol 2nd": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Read Protocol",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert row": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request3": {
+      "main": [
+        [
+          {
+            "node": "Delete row(s)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "9RyWU7G4ahZzk6Yy3HqTy",
+    "callerPolicy": "workflowsFromSameOwner",
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "prodifyil.app.n8n.cloud",
+            "user-agent": "node",
+            "content-length": "197",
+            "accept": "*/*",
+            "accept-encoding": "gzip, br",
+            "accept-language": "*",
+            "cdn-loop": "cloudflare; loops=1; subreqs=1",
+            "cf-connecting-ip": "3.87.53.64",
+            "cf-ew-via": "15",
+            "cf-ipcountry": "US",
+            "cf-ray": "9d3765b0fb0f68ed-IAD",
+            "cf-visitor": "{\"scheme\":\"https\"}",
+            "cf-worker": "n8n.cloud",
+            "content-type": "application/json",
+            "sec-fetch-mode": "cors",
+            "x-forwarded-for": "3.87.53.64, 162.158.79.19",
+            "x-forwarded-host": "prodifyil.app.n8n.cloud",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "traefik-prod-users-gwc-42-bd54959cf-mnkgn",
+            "x-invocation-id": "sin1:iad1::t7q4f-1772024547369-45821b43bdb4",
+            "x-is-trusted": "yes",
+            "x-real-ip": "3.87.53.64",
+            "x-secret-key": "UVz$MKnk1kBsCN^#",
+            "x-vercel-id": "sin1:iad1::t7q4f-1772024547369-45821b43bdb4"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "protocolUrl": "https://vuiu2fp7jcbltnti.public.blob.vercel-storage.com/EMC/0022-25-SMC/protocols/protocol_0022-25-SMC.pdf",
+            "researchId": 103,
+            "siteId": 1,
+            "baseUrl": "https://staging.studyflow.global"
+          },
+          "webhookUrl": "https://prodifyil.app.n8n.cloud/webhook/9a54d415-b51c-42c3-8a0b-31cb6b22d942",
+          "executionMode": "production"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "versionId": "dd8d6f3d-bb94-4313-9797-cfbc31426951",
+  "activeVersionId": "dd8d6f3d-bb94-4313-9797-cfbc31426951",
+  "versionCounter": 32,
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-02-25T10:38:45.161Z",
+      "createdAt": "2026-02-25T10:38:45.161Z",
+      "role": "workflow:owner",
+      "workflowId": "fSHBEEjBbeXFIZzh",
+      "projectId": "drgp74Pcn8DWk0gm",
+      "project": {
+        "updatedAt": "2026-01-18T10:09:29.101Z",
+        "createdAt": "2026-01-18T10:09:23.816Z",
+        "id": "drgp74Pcn8DWk0gm",
+        "name": "Nir Levy <service@prodify.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "9b4a421e-6aba-40a7-82ff-eb34ba58a059"
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-02-26T09:07:24.000Z",
+    "createdAt": "2026-02-26T09:05:38.036Z",
+    "versionId": "dd8d6f3d-bb94-4313-9797-cfbc31426951",
+    "workflowId": "fSHBEEjBbeXFIZzh",
+    "nodes": [
+      {
+        "parameters": {
+          "operation": "pdf",
+          "options": {
+            "joinPages": true,
+            "maxPages": 30
+          }
+        },
+        "type": "n8n-nodes-base.extractFromFile",
+        "typeVersion": 1,
+        "position": [
+          -1488,
+          112
+        ],
+        "id": "6b758da1-e7cc-49fb-8fdc-0df31689d707",
+        "name": "Extract from File"
+      },
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "9a54d415-b51c-42c3-8a0b-31cb6b22d942",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          -2816,
+          208
+        ],
+        "id": "d7d9bd5a-e5d1-406a-8b20-fdc8e8f14cca",
+        "name": "Webhook",
+        "webhookId": "9a54d415-b51c-42c3-8a0b-31cb6b22d942"
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "={{ $('LlamaIndexMarkdown').item.json.data }}",
+          "hasOutputParser": true,
+          "messages": {
+            "messageValues": [
+              {
+                "message": "=You are a clinical data extraction assistant.\n# Clinical Trial Protocol Expert - Schedule of Activities (SOA) Extraction Role\n\n## Role Definition\nYou are a **Clinical Trial Protocol** specializing in clinical trial documentation and protocol analysis. Your primary responsibility is to extract Schedule of Activities (SOA) information from clinical trial PDF documents and convert it into structured CSV format using markdown table syntax.\n\n## Core Responsibilities\n\n### 1. Document Analysis\n- Carefully analyze PDF documents to locate SOA tables that may span multiple pages\n- Identify table headers, column structures, and data relationships\n- Recognize common clinical trial terminology and abbreviations\n- Handle multi-page table continuations and merged cells\n\n### 2. Data Extraction Standards\nExtract the following standard SOA columns (adapt based on document structure):\n- **When constructing any procedure or activity name, replace all newline characters (\\n, \\r\\n, actual line breaks) with a single space.\n- **Never include \"\\n\" or any escape sequences in the output.\n- **Meeting Number**: Sequential visit/meeting identifier\n- **Meeting Name**: Descriptive name of the visit/phase (e.g., Screening, Baseline, Follow-up)\n- **Actions to Perform**: \n1. Detailed list of procedures, assessments, or activities \n2. keep the exact procedure name as shown in the input data\n3. Do not add any comment or details to the origial procedure name\n- **Days since First Meeting**: Timeline relative to study start (negative for pre-study activities)\n- **Visit Type**: Frequency or type classification\n- **Allowed Deviation**: Permitted timing variations (in days)\n\n\n## Quality Standards\n\n### Accuracy Requirements\n- Maintain 100% fidelity to source document content\n- Use the list in {{ $json.output.activities }} only as a spelling reference for the procedures or activities names.\nDo not restrict yourself to this list. If the SOA tables contain any additional procedures or activities that are not in this list, you must still include them.\n- Keep the procedure or activity name exactly as in the original input data with an exact reference to this list:{{ $json.output.activities }} \n- Preserve original medical terminology and abbreviations\n- Capture complete action lists without truncation\n- Maintain correct numerical values and timelines\n\n### Data Handling Rules\n- **Multi-line Actions**: Combine multiple procedures using commas and appropriate spacing\n- **Timeline Consistency**: Ensure chronological order and accurate day calculations\n- **Missing Data**: Use \"N/A\" for unavailable information, never leave cells empty\n- **Language Handling**: Preserve original language (including Hebrew/foreign text) alongside English translations when present\n\n### SOA table interpretation rules\n\n1. Treat every non-header row in the SOA tables as a **candidate procedure/activity**.\n   - The procedure name is the exact text in the first column of that row.\n   - Ignore purely structural rows that are section titles only, such as:\n     - \"Physical Evaluation\"\n     - \"Patient-Reported Outcomes (Electronic)\"\n     - \"Laboratory Tests and Sample Collections\"\n\n2. A procedure is **performed at a visit** if, in that visit\u2019s column, the cell is NOT empty\n   (e.g. contains \"X\", \"\u25cf\", \"\u2714\", \"Yes\", or any non-blank marker).\n\n3. For each visit / treatment:\n   - Iterate over all candidate rows from top to bottom.\n   - If the cell under that visit column is marked per rule 2, append the procedure name\n     to `actions_to_perform` for that visit.\n   - Use the exact text from the row (preserve spelling, punctuation, line breaks).\n\n4. Never group or rename procedures:\n   - Do **not** collapse rows like \"Concomitant medications\" and \"AEs\" into\n     generic labels like \"safety assessments\".\n   - Each row that has a marker in a visit column must appear as its own item in\n     `actions_to_perform` for that visit.\n5. Do not output any HTML tags inside a procedure name (for example: <br/>.\n6. Ignore any formatting escape sequences such as \"\\n\", \"\\r\" and treat them as spaces for the procedure names. \n7. Procedures that appear on multiple pages or repeated tables (e.g. \"Concomitant medications\",\n   \"AEs\") must be treated as a single procedure name and included for **every** visit column\n   where the cell is marked in **any** of the SOA table fragments.\n\n\n### Format Consistency\n- Use consistent column alignment in markdown tables\n- Maintain uniform spacing and structure\n- Ensure proper pipe (`|`) separation\n- Include table headers with appropriate separators (`|---|`)\n\n## Extraction Process\n\n### Step 1: Document Review\n1. Scan entire PDF for SOA tables\n2. Identify table boundaries and page breaks\n3. Note any special formatting or merged cells\n4. Catalog all column headers and their meanings\n\n### Step 2: Data Mapping\n1. Map source columns to standard output format\n2. Identify data transformations needed\n3. Note any non-standard information that requires special handling\n4. Plan for multi-page table reconstruction\n\n### Step 3: Extraction & Validation\n1. Extract data row by row, maintaining source order\n2. Cross-reference timeline calculations\n3. Verify completeness of action descriptions\n4. Validate data consistency across visits\n\n### Step 4: Quality Assurance\n1. Review extracted table for completeness\n2. Check alignment with source document\n3. Verify markdown syntax correctness\n4. Ensure all required columns are populated\n\n## Common Challenges & Solutions\n\n### Multi-Page Tables\n- Carefully track table continuations across pages\n- Reconstruct complete rows when data spans pages\n- Maintain proper sequence numbering\n\n### Complex Action Lists\n- Preserve detailed procedure descriptions\n- Use appropriate separators for multiple actions\n- Maintain clinical accuracy of terminology\n\n### Timeline Calculations\n- Verify day calculations against study start\n- Handle negative days for screening periods\n- Ensure consistency in deviation allowances\n\n## Error Handling\n- **Unclear Data**: Flag ambiguous information and provide best interpretation\n- **Missing Information**: Clearly indicate when data is not available in source\n- **Formatting Issues**: Adapt to source document layout while maintaining output standards\n- **Inconsistencies**: Note discrepancies and provide rationale for interpretation choices\n\n### Consistency self-check\n\nAfter you build the `schedule_of_activities` JSON:\n\n1. Re-scan all SOA tables.\n2. For each procedure row and each visit column:\n   - If the visit cell is marked (e.g. \"X\") but that procedure is missing from\n     `actions_to_perform` for that visit, **add it**.\n3. Ensure each procedure appears exactly once per visit where it is performed and without any additional comments or explanation.\n\n\n"
+              },
+              {
+                "type": "AIMessagePromptTemplate",
+                "message": "### Output Format Requirements Present extracted data as a markdown table with the following structure:  ```markdown | Meeting Number | Meeting Name | Actions to Perform | Days since First Meeting | Visit Type | Allowed Deviation | |----------------|--------------|-------------------|---------------------------|------------|-------------------| | [number] | [name] | [detailed actions] | [timeline] | [type] | [deviation] | ```"
+              }
+            ]
+          }
+        },
+        "type": "@n8n/n8n-nodes-langchain.chainLlm",
+        "typeVersion": 1.6,
+        "position": [
+          784,
+          0
+        ],
+        "id": "931447a6-2fd4-405b-bc15-74dca99746bf",
+        "name": "Basic LLM Chain"
+      },
+      {
+        "parameters": {
+          "schemaType": "manual",
+          "inputSchema": "{\n  \"$schema\": \"http://json-schema.org/draft-07/schema#\",\n  \"title\": \"Schedule of Activities (SOA) Schema\",\n  \"description\": \"JSON schema for extracting Schedule of Activities from clinical trial PDFs\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"schedule_of_activities\": {\n      \"type\": \"array\",\n      \"description\": \"Array of SOA entries representing each meeting/visit\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"meeting_number\": {\n            \"type\": \"integer\",\n            \"description\": \"Sequential meeting/visit identifier\",\n            \"minimum\": 1,\n            \"examples\": [1, 2, 3, 4, 5]\n          },\n          \"meeting_name\": {\n            \"type\": \"string\",\n            \"description\": \"Descriptive name of the visit/meeting phase\",\n            \"minLength\": 1,\n            \"examples\": [\n              \"Screening\",\n              \"Intervention Period\",\n              \"Baseline\",\n              \"Follow-up\",\n              \"End of Study\"\n            ]\n          },\n          \"actions_to_perform\": {\n            \"type\": \"array\",\n            \"description\": \"List of individual procedures, assessments, or activities to be performed\",\n            \"items\": {\n              \"type\":\"string\",\n              \"minLength\": 1\n            },\n            \"minLength\": 1,\n            \"examples\": [\n              \"Informed consent, Inclusion and exclusion\",\n              \"Inclusion and exclusion criteria, Nasal endoscopy\",\n              \"Smoking status, IRT, Vital signs\"]\n          },\n          \"days_since_first_meeting\": {\n            \"type\": \"integer\",\n            \"description\": \"Number of days since the first meeting (negative values for pre-study activities)\",\n            \"examples\": [-28, 1, 15, 29, 43]\n          },\n          \"visit_type\": {\n            \"type\": \"string\",\n            \"description\": \"Type or frequency classification of the visit\",\n            \"minLength\": 1,\n            \"examples\": [\n              \"Weekly (\u05e9\u05d1\u05d5\u05e2)\",\n              \"Monthly\",\n              \"Bi-weekly\",\n              \"Quarterly\",\n              \"As needed\"\n            ]\n          },\n          \"allowed_deviation\": {\n            \"type\": \"integer\",\n            \"description\": \"Permitted timing deviation in days\",\n            \"minimum\": 0,\n            \"examples\": [0, 1, 2, 3, 7]\n          }\n        },\n        \"required\": [\n          \"meeting_number\",\n          \"meeting_name\",\n          \"actions_to_perform\",\n          \"days_since_first_meeting\",\n          \"visit_type\",\n          \"allowed_deviation\"\n        ],\n        \"additionalProperties\": false\n      },\n      \"minItems\": 1\n    },\n    \"metadata\": {\n      \"type\": \"object\",\n      \"description\": \"Optional metadata about the extraction\",\n      \"properties\": {\n        \"extraction_date\": {\n          \"type\": \"string\",\n          \"format\": \"date-time\",\n          \"description\": \"ISO 8601 timestamp of when the extraction was performed\"\n        },\n        \"source_document\": {\n          \"type\": \"string\",\n          \"description\": \"Name or identifier of the source PDF document\"\n        },\n        \"total_meetings\": {\n          \"type\": \"integer\",\n          \"description\": \"Total number of meetings/visits extracted\",\n          \"minimum\": 1\n        },\n        \"study_duration_days\": {\n          \"type\": \"integer\",\n          \"description\": \"Total study duration from first to last meeting in days\"\n        },\n        \"extraction_notes\": {\n          \"type\": \"array\",\n          \"description\": \"Any notes or observations from the extraction process\",\n          \"items\": {\n            \"type\": \"string\"\n          }\n        }\n      },\n      \"additionalProperties\": false\n    }\n  },\n  \"required\": [\"schedule_of_activities\"],\n  \"additionalProperties\": false,\n  \"examples\": [\n    {\n      \"schedule_of_activities\": [\n        {\n          \"meeting_number\": 1,\n          \"meeting_name\": \"Screening\",\n          \"actions_to_perform\": [\"Informed consent\", \"Inclusion and exclusion\"],\n          \"days_since_first_meeting\": -28,\n          \"visit_type\": \"Weekly (\u05e9\u05d1\u05d5\u05e2)\",\n          \"allowed_deviation\": 0\n        },\n        {\n          \"meeting_number\": 2,\n          \"meeting_name\": \"Intervention Period\",\n          \"actions_to_perform\": [\"Inclusion and exclusion criteria\", \"Nasal endoscopy\"],\n          \"days_since_first_meeting\": 1,\n          \"visit_type\": \"Weekly (\u05e9\u05d1\u05d5\u05e2)\",\n          \"allowed_deviation\": 0\n        },\n        {\n          \"meeting_number\": 3,\n          \"meeting_name\": \"Intervention Period\",\n          \"actions_to_perform\": [\"Smoking status\", \"IRT\", \"Vital signs\"],\n          \"days_since_first_meeting\": 15,\n          \"visit_type\": \"Weekly (\u05e9\u05d1\u05d5\u05e2)\",\n          \"allowed_deviation\": 0\n        },\n        {\n          \"meeting_number\": 4,\n          \"meeting_name\": \"Intervention Period\",\n          \"actions_to_perform\": [\"Record planned endoscopic sinus surgery\", \"PI\"],\n          \"days_since_first_meeting\": 29,\n          \"visit_type\": \"Weekly (\u05e9\u05d1\u05d5\u05e2)\",\n          \"allowed_deviation\": 0\n        },\n        {\n          \"meeting_number\": 5,\n          \"meeting_name\": \"Intervention Period\",\n          \"actions_to_perform\": [\"IMP administration\", \"AxMP dispensation\", \"Symptom review\"],\n          \"days_since_first_meeting\": 43,\n          \"visit_type\": \"Weekly (\u05e9\u05d1\u05d5\u05e2)\",\n          \"allowed_deviation\": 0\n        }\n      ],\n      \"metadata\": {\n        \"extraction_date\": \"2025-05-29T10:00:00Z\",\n        \"source_document\": \"clinical_trial_protocol_v1.2.pdf\",\n        \"total_meetings\": 5,\n        \"study_duration_days\": 71,\n        \"extraction_notes\": [\n          \"All meetings extracted successfully\",\n          \"Hebrew text preserved in visit_type field\"\n        ]\n      }\n    }\n  ]\n}"
+        },
+        "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+        "typeVersion": 1.2,
+        "position": [
+          928,
+          224
+        ],
+        "id": "b859d678-8bb5-4b2f-9fc4-6dabb13d9ab1",
+        "name": "Structured Output Parser"
+      },
+      {
+        "parameters": {
+          "model": "openai/gpt-5",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+        "typeVersion": 1,
+        "position": [
+          800,
+          224
+        ],
+        "id": "07011d8c-0500-4c97-af28-cd36b8db6840",
+        "name": "OpenRouter Chat Model3",
+        "credentials": {
+          "openRouterApi": {
+            "id": "T7TjEbEGEzMRliqw",
+            "name": "OpenRouter account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://api.cloud.llamaindex.ai/api/v1/parsing/upload",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpBearerAuth",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "sendBody": true,
+          "contentType": "multipart-form-data",
+          "bodyParameters": {
+            "parameters": [
+              {
+                "parameterType": "formBinaryData",
+                "name": "file",
+                "inputDataFieldName": "data"
+              },
+              {
+                "name": "target_pages",
+                "value": "={{ $('Map Pages').item.json['Start Page'] }}-{{ $('Map Pages').item.json['End Page'] }}"
+              },
+              {
+                "name": "premium_mode",
+                "value": "true"
+              },
+              {
+                "name": "output_tables_as_HTML",
+                "value": "True"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          -464,
+          112
+        ],
+        "id": "af08a144-afe8-4259-944a-04f555da45e5",
+        "name": "HTTP Request",
+        "credentials": {
+          "httpBearerAuth": {
+            "id": "8YUTliuLVqXIYwZS",
+            "name": "Bearer Auth account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "url": "=https://api.cloud.llamaindex.ai/api/v1/parsing/job/{{ $json.id }}",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpBearerAuth",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          -240,
+          112
+        ],
+        "id": "a76e8a8f-44cb-4cbb-b54e-6203fa1276f0",
+        "name": "HTTP Request10",
+        "credentials": {
+          "httpBearerAuth": {
+            "id": "8YUTliuLVqXIYwZS",
+            "name": "Bearer Auth account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "rules": {
+            "values": [
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 2
+                  },
+                  "conditions": [
+                    {
+                      "leftValue": "={{ $json.status }}",
+                      "rightValue": "SUCCESS",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      },
+                      "id": "8421ecaa-968e-49f6-82c6-38fdebf6e447"
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "SUCCESS"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 2
+                  },
+                  "conditions": [
+                    {
+                      "id": "1ca01ef7-869e-4a9b-93ef-0e70fc1bbab3",
+                      "leftValue": "={{ $json.status }}",
+                      "rightValue": "PENDING",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals",
+                        "name": "filter.operator.equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "PENDING"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.switch",
+        "typeVersion": 3.2,
+        "position": [
+          -16,
+          48
+        ],
+        "id": "f3c1add8-8f4d-4967-9146-d2771524943a",
+        "name": "Switch"
+      },
+      {
+        "parameters": {
+          "amount": 15
+        },
+        "type": "n8n-nodes-base.wait",
+        "typeVersion": 1.1,
+        "position": [
+          208,
+          208
+        ],
+        "id": "87a63cbf-d8d1-460d-8d5e-4a84e18a1b58",
+        "name": "Wait",
+        "webhookId": "22b67c7c-6819-454a-b25a-a95a1e313c44"
+      },
+      {
+        "parameters": {
+          "model": "openai/gpt-5-mini",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+        "typeVersion": 1,
+        "position": [
+          -1184,
+          336
+        ],
+        "id": "d81031ec-2799-4b36-9d64-5a830994ead9",
+        "name": "OpenRouter Chat Model4",
+        "credentials": {
+          "openRouterApi": {
+            "id": "T7TjEbEGEzMRliqw",
+            "name": "OpenRouter account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "={{ $('Search Secret').item.json.Base_url }}/api/getSOAFromProtocol",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "x-vercel-protection-bypass",
+                "value": "prodifyproductiontem123HayElazar"
+              },
+              {
+                "name": "x-tenant-secret",
+                "value": "={{ $('Search Secret').item.json.External_secret_key }}"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ $('FinalJson').item.json.output }}",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          2160,
+          0
+        ],
+        "id": "e35b53b2-9904-406b-b845-3f4f1e2a27e5",
+        "name": "HTTP Request3"
+      },
+      {
+        "parameters": {
+          "text": "={{ $json.data }}",
+          "schemaType": "manual",
+          "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"activities\": {\n      \"type\": \"array\",\n      \"items\": { \"type\": \"string\" }\n    }\n  },\n  \"required\": [\"activities\"],\n  \"additionalProperties\": false\n}\n",
+          "options": {
+            "systemPromptTemplate": "You are an extraction and diagnostics model.\n\nYou receive as input one or more \"Schedule of Activities\" tables for a clinical trial.\nEach row in the first column is a potential procedure or activity.\nThe remaining columns indicate at which visit(s) the procedure is performed (for example with \"X\" markers).\n\nYour task is to:\n1. Examine every row that appears in the first column.\n2. Decide if it is:\n   - a real procedure/activity row OR\n   - a header / section title / label OR\n   - something else (e.g., comments).\n3.  A procedure is **performed at a visit** if, in that visit\u2019s column, the cell is NOT empty\n   (e.g. contains \"X\", \"\u25cf\", \"\u2714\", \"Yes\", or any non-blank marker).\n4. For every row in the first column, output a diagnostic record so we can see exactly what you did.\n5. Do not output headers / section title or labels\n6. Do not output any HTML tags inside a procedure name (for example: <br/>.\n7. Ignore any formatting escape sequences such as \"\\n\", \"\\r\" and treat them as spaces for the procedure names. \n\nOutput ONLY valid raw JSON. No prose, no Markdown fences, no keys other than those in the schema.\n\nAdditional rules:\n\n- Read the ENTIRE input from start to finish. Do not stop after the first table or section.\n- Do not deduplicate or merge similar rows. If the same text appears in multiple rows, you must output multiple records with different \"row_index\" values.\n- Do not sort or reorder rows; always preserve the original order of appearance.\n\nVerification step (very important):\n\n- Before returning the JSON:\n  - Confirm that the number of \"rows\" objects you are returning equals the number of rows you processed in the FIRST column of all the SoA tables combined.\n  - Re-check that for every row:\n    - \"row_index\" is unique and sequential starting at 1,\n    - All boolean flags are consistent with the definitions above.\n\nOutput the number of procedures or activities at the end\n"
+          }
+        },
+        "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+        "typeVersion": 1.2,
+        "position": [
+          432,
+          0
+        ],
+        "id": "deea6640-9745-4d96-abe1-87f3122577f2",
+        "name": "Information Extractor3",
+        "alwaysOutputData": false,
+        "executeOnce": true
+      },
+      {
+        "parameters": {
+          "model": "google/gemini-2.5-pro",
+          "options": {
+            "responseFormat": "json_object"
+          }
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+        "typeVersion": 1,
+        "position": [
+          512,
+          224
+        ],
+        "id": "7883a843-ff1f-4270-8bdf-cb25378e9da1",
+        "name": "OpenRouter Chat Model5",
+        "credentials": {
+          "openRouterApi": {
+            "id": "T7TjEbEGEzMRliqw",
+            "name": "OpenRouter account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "model": "openai/gpt-5-mini",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+        "typeVersion": 1,
+        "position": [
+          1664,
+          224
+        ],
+        "id": "f14cee5d-c484-49b2-97ac-a5981b9b2728",
+        "name": "OpenRouter Chat Model",
+        "credentials": {
+          "openRouterApi": {
+            "id": "T7TjEbEGEzMRliqw",
+            "name": "OpenRouter account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "text": "={{$json[\"output\"][\"distinct_actions\"].join(\"\\n\")}}",
+          "schemaType": "manual",
+          "inputSchema": "{\n  \"$schema\": \"http://json-schema.org/draft-07/schema#\",\n  \"title\": \"Clinical Trial Data\",\n  \"type\": \"array\",\n  \"items\": {\n    \"type\": \"object\",\n    \"properties\": {\n      \"output\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"distinct_actions\": {\n            \"type\": \"array\",\n            \"items\": {\n              \"type\": \"string\",\n              \"minLength\": 1\n            },\n            \"uniqueItems\": true,\n            \"minItems\": 1,\n            \"description\": \"Array of unique clinical trial actions, procedures, and assessments\"\n          },\n          \"total_count\": {\n            \"type\": \"integer\",\n            \"minimum\": 0,\n            \"description\": \"Total count of distinct actions\"\n          }\n        },\n        \"required\": [\"distinct_actions\", \"total_count\"],\n        \"additionalProperties\": false\n      }\n    },\n    \"required\": [\"output\"],\n    \"additionalProperties\": false\n  }\n}",
+          "options": {
+            "systemPromptTemplate": "=You are an expert extraction algorithm.\nYour input data is \"ACTIVITIES LIST\".\nThis {{ $('LlamaIndexMarkdown').item.json.data }} is a \"SOURCE JSON\" includes tables with activities. \nSort the \"ACTIVITES LIST\" list based on the activities order in the \"SOURCE JSON\".\nReturn the entire \"ACTIVITIES LIST\" ordered by activity names.\nDo not skip any activity from the \"ACTIVITIES LIST\".\nCreate a distinct list of all the activities.\n\n#You must return ALL the activities from the \"ACTIVITIES LIST\".\n#You should not change any name in the \"ACTIVITIES LIST\"\n#You should not change capital letters\n#You should not remove any panctuation sign from the activity names\n\nIf you can't find an activity name, you may decide for yourself what to do."
+          }
+        },
+        "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+        "typeVersion": 1.2,
+        "position": [
+          1584,
+          0
+        ],
+        "id": "6a83bb9b-c491-49d9-842d-b646feb07c74",
+        "name": "Reorder activities"
+      },
+      {
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "063da7a7-df79-411c-90e5-ae42260f8e93",
+                "name": "output.schedule_of_activities",
+                "value": "={{ $json.output.schedule_of_activities }}",
+                "type": "array"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          1136,
+          0
+        ],
+        "id": "1143f617-8793-4eee-861b-0c8920d395ff",
+        "name": "Schedule of Activities"
+      },
+      {
+        "parameters": {
+          "url": "=https://api.cloud.llamaindex.ai/api/v1/parsing/job/{{ $json.id }}/result/raw/markdown",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpBearerAuth",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          208,
+          0
+        ],
+        "id": "2b21cba9-9ab2-4ff0-ad70-4ae46fa41047",
+        "name": "LlamaIndexMarkdown",
+        "alwaysOutputData": true,
+        "credentials": {
+          "httpBearerAuth": {
+            "id": "8YUTliuLVqXIYwZS",
+            "name": "Bearer Auth account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "return [\n  {\n    json: {\n      output:{\n      data:{ \n        schedule_of_activities: $('Schedule of Activities').first().json.output.schedule_of_activities ,\n        metadata: {\n          start_page: $('Map Pages').first().json['Start Page'],\n          end_page:$('Map Pages').first().json['End Page'] ,\n      researchid:$('Webhook').first().json.body.researchId ,\n        siteid: $('Webhook').first().json.body.siteId,\n          activities: $('Reorder activities').first().json.output[0].output.distinct_actions\n        }\n      }\n      }\n    }\n  }\n];\n"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1936,
+          0
+        ],
+        "id": "cc9b9392-6bd0-49f9-be0b-255ac032c88e",
+        "name": "FinalJson"
+      },
+      {
+        "parameters": {
+          "jsCode": "// n8n JavaScript Code node\n// Extract distinct actions_to_perform from output.schedule_of_activities\n\nconst scheduleOfActivities =\n  $input.first().json?.output?.schedule_of_activities ?? [];\n\n// Collect all actions from all meetings\nconst allActions = scheduleOfActivities.flatMap((meeting) => {\n  const actions = meeting?.actions_to_perform;\n\n  // Ensure we always return an array\n  if (Array.isArray(actions)) return actions;\n  if (typeof actions === \"string\" && actions.trim()) return [actions.trim()];\n  return [];\n});\n\n// Deduplicate + sort\nconst distinctActions = [...new Set(allActions)]\n  .filter((x) => typeof x === \"string\" && x.trim())\n  .map((x) => x.trim())\n  .sort((a, b) => a.localeCompare(b));\n\n// Return single item with output object\nreturn [\n  {\n    json: {\n      output: {\n        distinct_actions: distinctActions,\n        total_count: distinctActions.length,\n      },\n    },\n  },\n];\n"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1360,
+          0
+        ],
+        "id": "6be8ed22-9491-4737-b66c-a0780ed9db5f",
+        "name": "Code in JavaScript"
+      },
+      {
+        "parameters": {
+          "url": "={{ $('Webhook').item.json.body.protocolUrl }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Authorization",
+                "value": "=Bearer {{ $('Search Secret').item.json.blob_token }}"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          -1712,
+          112
+        ],
+        "id": "e5d9d505-d3a1-4e24-8eaf-16179468cb1f",
+        "name": "Read Protocol"
+      },
+      {
+        "parameters": {
+          "operation": "get",
+          "dataTableId": {
+            "__rl": true,
+            "value": "DSn4OBX0pilN5zQJ",
+            "mode": "list",
+            "cachedResultName": "Domains",
+            "cachedResultUrl": "/projects/drgp74Pcn8DWk0gm/datatables/DSn4OBX0pilN5zQJ"
+          },
+          "filters": {
+            "conditions": [
+              {
+                "keyName": "Secret_key",
+                "keyValue": "={{ $json.headers['x-secret-key'] }}"
+              }
+            ]
+          },
+          "limit": 1
+        },
+        "type": "n8n-nodes-base.dataTable",
+        "typeVersion": 1,
+        "position": [
+          -2592,
+          208
+        ],
+        "id": "eef93599-0e49-4726-8555-afef0c867473",
+        "name": "Search Secret",
+        "alwaysOutputData": true
+      },
+      {
+        "parameters": {
+          "text": "={{ $json.text }}",
+          "schemaType": "manual",
+          "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"startPage\": {\n      \"type\": \"integer\",\n      \"description\": \"The page number where the Schedule of Activities section starts\"\n    },\n    \"endPage\": {\n      \"type\": \"integer\",\n      \"description\": \"The page number where the Schedule of Activities section ends\"\n    }\n  },\n  \"required\": [\"startPage\", \"endPage\"]\n}",
+          "options": {
+            "systemPromptTemplate": "You are a smart data extraction assistant. Your task is to extract the page range of the section related to the Schedule of Activities (SoA) from a Table of Content or Appendix of a clinical trial protocol document.\nLook for a section explicitly named \"Schedule of Activities\" or similar variations such as: \n- \"SOA\"\n- \"Schedule of Events\"\n- \"Visit Schedule\"\n- \"Visit Table\"\n- \"Activity Table\"\n\nReturn the **startPage** (the page number where the section starts), and the **endPage** (either the next section\u2019s page minus 1, or estimate if not clear).\n"
+          }
+        },
+        "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+        "typeVersion": 1.2,
+        "position": [
+          -1264,
+          112
+        ],
+        "id": "929864d8-f980-461e-9000-95df697b697c",
+        "name": "Extract Schema Pages"
+      },
+      {
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "f460f8db-7884-434b-9a35-fcd7d8ebedd9",
+                "name": "Start Page",
+                "value": "={{(Number($json.output.startPage)-1) }}",
+                "type": "number"
+              },
+              {
+                "id": "f5cc2031-8b81-4a2c-ada1-d467e373db75",
+                "name": "End Page",
+                "value": "={{ (Number($json.output.endPage) + 2).toString() }}\n",
+                "type": "number"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          -912,
+          112
+        ],
+        "id": "e44ec64c-e06c-46df-be57-5d8034a47bed",
+        "name": "Map Pages"
+      },
+      {
+        "parameters": {
+          "url": "={{ $('Webhook').item.json.body.protocolUrl }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Authorization",
+                "value": "=Bearer {{ $('Search Secret').item.json.blob_token }}"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          -688,
+          112
+        ],
+        "id": "999165ab-3bcc-4395-a243-bfcb80f16d36",
+        "name": "Read Protocol 2nd"
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 3
+            },
+            "conditions": [
+              {
+                "id": "88f77b6c-7f3a-41bb-a347-7209a70b5280",
+                "leftValue": "={{ $('Search Secret').item.json.isEmpty() }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "false",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          -2160,
+          208
+        ],
+        "id": "5b67fb94-2ab6-4c17-a7bf-80e843421b91",
+        "name": "If"
+      },
+      {
+        "parameters": {
+          "options": {
+            "responseCode": 401
+          }
+        },
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          -1936,
+          304
+        ],
+        "id": "541492ac-0bca-400d-968f-a277060e9e75",
+        "name": "Respond to Webhook"
+      },
+      {
+        "parameters": {
+          "options": {
+            "responseCode": 200
+          }
+        },
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          -1936,
+          112
+        ],
+        "id": "50540377-a2b2-4f70-b3e0-34cae0f799ba",
+        "name": "Respond to Webhook1"
+      },
+      {
+        "parameters": {
+          "dataTableId": {
+            "__rl": true,
+            "value": "E5u7QPCjGgDpUons",
+            "mode": "list",
+            "cachedResultName": "Staging Parameters",
+            "cachedResultUrl": "/projects/drgp74Pcn8DWk0gm/datatables/E5u7QPCjGgDpUons"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "workflow_id": "={{ $workflow.id }}",
+              "external_secret_id": "={{ $json.External_secret_key }}",
+              "research_id": "={{ $('Webhook').item.json.body.researchId }}"
+            },
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "workflow_id",
+                "displayName": "workflow_id",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "readOnly": false,
+                "removed": false
+              },
+              {
+                "id": "external_secret_id",
+                "displayName": "external_secret_id",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "readOnly": false,
+                "removed": false
+              },
+              {
+                "id": "research_id",
+                "displayName": "research_id",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "readOnly": false,
+                "removed": false
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.dataTable",
+        "typeVersion": 1.1,
+        "position": [
+          -2384,
+          208
+        ],
+        "id": "21f6ef23-b1aa-414c-8eef-264cbda86b42",
+        "name": "Insert row"
+      },
+      {
+        "parameters": {
+          "operation": "deleteRows",
+          "dataTableId": {
+            "__rl": true,
+            "value": "E5u7QPCjGgDpUons",
+            "mode": "list",
+            "cachedResultName": "Staging Parameters",
+            "cachedResultUrl": "/projects/drgp74Pcn8DWk0gm/datatables/E5u7QPCjGgDpUons"
+          },
+          "filters": {
+            "conditions": [
+              {
+                "keyName": "workflow_id",
+                "keyValue": "={{ $workflow.id }}"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.dataTable",
+        "typeVersion": 1.1,
+        "position": [
+          2368,
+          0
+        ],
+        "id": "84d8ae83-b0a5-4c8f-a52f-50684216ba4d",
+        "name": "Delete row(s)"
+      }
+    ],
+    "connections": {
+      "Extract from File": {
+        "main": [
+          [
+            {
+              "node": "Extract Schema Pages",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "Search Secret",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Basic LLM Chain": {
+        "main": [
+          [
+            {
+              "node": "Schedule of Activities",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Structured Output Parser": {
+        "ai_outputParser": [
+          [
+            {
+              "node": "Basic LLM Chain",
+              "type": "ai_outputParser",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "OpenRouter Chat Model3": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "Basic LLM Chain",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "HTTP Request": {
+        "main": [
+          [
+            {
+              "node": "HTTP Request10",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "HTTP Request10": {
+        "main": [
+          [
+            {
+              "node": "Switch",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Switch": {
+        "main": [
+          [
+            {
+              "node": "LlamaIndexMarkdown",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Wait",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Wait": {
+        "main": [
+          [
+            {
+              "node": "HTTP Request10",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "OpenRouter Chat Model4": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "Extract Schema Pages",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Information Extractor3": {
+        "main": [
+          [
+            {
+              "node": "Basic LLM Chain",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "OpenRouter Chat Model5": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "Information Extractor3",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "OpenRouter Chat Model": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "Reorder activities",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Reorder activities": {
+        "main": [
+          [
+            {
+              "node": "FinalJson",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Schedule of Activities": {
+        "main": [
+          [
+            {
+              "node": "Code in JavaScript",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "LlamaIndexMarkdown": {
+        "main": [
+          [
+            {
+              "node": "Information Extractor3",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "FinalJson": {
+        "main": [
+          [
+            {
+              "node": "HTTP Request3",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code in JavaScript": {
+        "main": [
+          [
+            {
+              "node": "Reorder activities",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Read Protocol": {
+        "main": [
+          [
+            {
+              "node": "Extract from File",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Search Secret": {
+        "main": [
+          [
+            {
+              "node": "Insert row",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Extract Schema Pages": {
+        "main": [
+          [
+            {
+              "node": "Map Pages",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Map Pages": {
+        "main": [
+          [
+            {
+              "node": "Read Protocol 2nd",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Read Protocol 2nd": {
+        "main": [
+          [
+            {
+              "node": "HTTP Request",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "If": {
+        "main": [
+          [
+            {
+              "node": "Respond to Webhook1",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Respond to Webhook",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Respond to Webhook1": {
+        "main": [
+          [
+            {
+              "node": "Read Protocol",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Insert row": {
+        "main": [
+          [
+            {
+              "node": "If",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "HTTP Request3": {
+        "main": [
+          [
+            {
+              "node": "Delete row(s)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "Nir Levy",
+    "name": "Version dd8d6f3d",
+    "description": "",
+    "autosaved": true,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-02-26T09:07:24.375Z",
+        "id": 20,
+        "workflowId": "fSHBEEjBbeXFIZzh",
+        "versionId": "dd8d6f3d-bb94-4313-9797-cfbc31426951",
+        "event": "activated",
+        "userId": "9b4a421e-6aba-40a7-82ff-eb34ba58a059"
+      }
+    ]
+  }
+}
